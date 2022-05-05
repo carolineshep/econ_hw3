@@ -57,7 +57,7 @@ demand <- function(p, model){
 
 # for each p level, return estimated aggregate demand
 demand_agg <- function(p){
-  q <- demand(p, model_demand_l) + demand(p, model_demand_h)
+  q <- demand(p, low_lm) + demand(p, high_lm)
   return(q)
 }
 
@@ -68,7 +68,11 @@ Qagg <- map(price, demand_agg) %>%
 df<- tibble(Qagg = Qagg, price = price)
 
 ggplot(df, aes(Qagg, price)) +
-  geom_line()
+  geom_line() +
+  geom_text(aes(x = 2e+05, y = 5),
+            label = "Aggregate Monthly Demand Curve") +
+  labs(x = "Quantity in kWh",
+       y = "Price")
 
 # I also define functions for calculating the consumer surplus:
 
@@ -83,47 +87,50 @@ CS_agg <- function(p){
   return(cs)
 }
 
-# High graph
-ggplot(data = carbon, aes(x = q_high, y = price)) +
-  theme_minimal() +
-  geom_line() +
-  geom_abline(intercept = high_lm$coefficients[1], slope = high_lm$coefficients[1], color = "red") +
-  labs(x = "KWH Demand from High Income Group",
-       y = "Price (Cents)") +
-  geom_text(aes(label = "High Income Energy Demand (KWH)", x = 10, y = 5), size = 5)
-
-
-# Low graph
-ggplot(data = water, aes(x = q_low_kwh, y = price_cents)) +
-  theme_minimal() +
-  geom_line() +
-  geom_abline(intercept = 0, slope = low_lm$coefficients[1], color = "red") +
-  labs(x = "KWH Demand",
-       y = "Price (cents)") +
-  geom_text(aes(label = "Low Income Energy Demands"), x = 10, y = 5, size = 5)
-
 ```
 
 
 ### Demand Equations
 
-#Low Income Demand:
+# Low Income Demand:
 lowMWTP = `r low_lm$coefficients[1]` + `r low_lm$coefficients[2]` * q
 
-#High Income Demand:
+# High Income Demand:
 highMWTP = `r high_lm$coefficients[1]` + `r high_lm$coefficients[2]` * q
 
+# Agg demand equation:
+
 ```{r}
-# Aggregate demand curve
+# Aggregate demand: sum horizontally
 
-demand_aggwrong <- (high_lm$coefficients[1] + low_lm$coefficients[1]) + (high_lm$coefficients[2] + low_lm$coefficients[2])
+agg <- predict_demand_p %>%
+  mutate(q_agg = ifelse(is.na(low_q), high_q, low_q + high_q))
 
-q = (p-high_lm$coefficients[1]/high_lm$coefficients[2]) + (p-low_lm$coefficients[1]/low_lm$coefficients[2])
+# Easy function for q
 
-demand_agg <- (54.978-0.000162*q)
+agg_q_fun <- function(p){
+  agg_q <- ((p - high_lm$coefficients["(Intercept)"]) / high_lm$coefficients["q_high"]) + ((p - low_lm$coefficients["(Intercept)"]) / low_lm$coefficients["q_low"])
+  return(agg_q)
+}
+
+dmd_sq_agg_q <- agg_q_fun(3)
+predict_agg_demand <- data.frame(p = p_vector) %>%
+  mutate(q = agg_q_fun(p)) %>%
+  filter(p <= 10)
+agg_lm <- lm(p ~ q, data = predict_agg_demand)
+agg_p_fun <- function(q){
+  p <- agg_lm$coefficients["(Intercept)"] + agg_lm$coefficients["q"] * q
+  return(p)
+}
+
 ```
 
-### Models
+### Aggregate Demand Equation
+
+q = ((p - `r high_lm$coefficients["(Intercept)"]` ) / `r high_lm$coefficients["q_high"]` ) + ((p - `r low_lm$coefficients["(Intercept)"]` ) / `r low_lm$coefficients["q_low"]` )
+
+p = `r agg_lm$coefficients["(Intercept)"]` + `r agg_lm$coefficients["q"]` * q
+
 
 ```{r}
 # P Function low
@@ -140,9 +147,4 @@ funct_low_q <- function(p){
 xint_low_p <- (0 - low_lm$coefficients["(Intercept)"]) / low_lm$coefficients["q_low"]
 ```
 
-```{r}
 
-# how much would high group demand at $2
-
-demand_high_2 <- high_p_funct(p=2)
-```
