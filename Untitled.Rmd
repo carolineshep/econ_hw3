@@ -1,0 +1,94 @@
+---
+title: "hw3"
+author: "Caroline Shepherd"
+date: "5/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# attach packages
+library(tidyverse)
+library(here)
+library(ggplot2)
+library(janitor)
+
+```
+
+```{r}
+# Read in the data and clean it
+
+carbon <- read_csv(here("HW3_data.csv")) %>% 
+  clean_names() %>% 
+  rename(price = price_cents,
+         q_low = q_low_kwh,
+         q_high = q_high_kwh)
+```
+
+```{r}
+# Create and plot the marginal demand of High and Low income groups and estimate a linear regression model
+  
+# High
+high_lm <- lm(price ~ q_high, data = carbon)
+summary(high_lm)
+
+# Low
+low_lm <- lm(price ~ q_low, data = carbon)
+summary(low_lm)
+
+# need to rearrange the parameter to get Q(P)
+#Qgg - Glow(P) + Qlow(H)
+
+# there will be a kink, so include ____ to take care of kink
+
+
+# High graph
+ggplot(data = carbon, aes(x = q_high, y = price)) +
+  theme_minimal() +
+  geom_line() +
+  geom_abline(intercept = high_lm$coefficients[1], slope = high_lm$coefficients[1], color = "red") +
+  labs(x = "KWH Demand from High Income Group",
+       y = "Price (Cents)") +
+  geom_text(aes(label = "High Income Energy Demand (KWH)", x = 10, y = 5), size = 5)
+
+
+# Low graph
+ggplot(data = water, aes(x = q_low_kwh, y = price_cents)) +
+  theme_minimal() +
+  geom_line() +
+  geom_abline(intercept = 0, slope = low_lm$coefficients[1], color = "red") +
+  labs(x = "KWH Demand",
+       y = "Price (cents)") +
+  geom_text(aes(label = "Low Income Energy Demands"), x = 10, y = 5, size = 5)
+
+```
+
+
+### Demand Equations
+
+#Low Income Demand:
+lowMWTP = `r low_lm$coefficients[1]` + `r low_lm$coefficients[2]` * q
+
+#High Income Demand:
+highMWTP = `r high_lm$coefficients[1]` + `r high_lm$coefficients[2]` * q
+
+```{r}
+# Aggregate demand curve
+
+demand_aggwrong <- (high_lm$coefficients[1] + low_lm$coefficients[1]) + (high_lm$coefficients[2] + low_lm$coefficients[2])
+
+q = (p-high_lm$coefficients[1]/high_lm$coefficients[2]) + (p-low_lm$coefficients[1]/low_lm$coefficients[2])
+
+demand_agg <- (54.978-0.000162*q)
+```
+
+
+```{r}
+
+# how much would high group demand at $2
+
+demand_high_2 <- high_p_funct(p=2)
+```
