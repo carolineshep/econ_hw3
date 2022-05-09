@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+
 library(tidyverse)
 library(janitor)
 library(rootSolve)
@@ -40,7 +41,7 @@ demand <- function(p, model){
 
 # for each p level, return estimated aggregate demand
 demand_agg <- function(p){
-  q <- demand(p, model_demand_l) + demand(p, model_demand_h)
+  q <- demand(p, low_lm) + demand(p, high_lm)
   return(q)
 }
 
@@ -52,18 +53,6 @@ df<- tibble(Qagg = Qagg, price = price)
 ggplot(df, aes(Qagg, price)) +
   geom_line()
 
-# I also define functions for calculating the consumer surplus:
-
-CS <- function(p, model){
-  q <- demand(p, model)
-  cs <- 0.5*(model$coefficients[[1]] - p)*q
-  return(cs)
-}
-
-CS_agg <- function(p){
-  cs <- CS(p,model_demand_l) + CS(p,model_demand_h)
-  return(cs)
-}
 ```
 
 
@@ -89,45 +78,97 @@ plot_grid(low_d_reg, high_d_reg, ncol = 2)
 
 ```{r}
 
-#storing intercepts and slopes as objects for high and low demand
-low_int <- low_lm$coefficients[1]
-low_slp <- low_lm$coefficients[2]
-high_int <- high_lm$coefficients[1]
-high_slp <- high_lm$coefficients[2]
+# Storing intercepts and slopes as objects for high and low demand
+low_int <- low_lm$coefficients[1] # Low Demand - intercept
+low_slp <- low_lm$coefficients[2] # Low Demand - slope
+high_int <- high_lm$coefficients[1] # High Demand - intercept
+high_slp <- high_lm$coefficients[2] # High Demand - slope
 
-# Creating functions for both demand groups for graphing
+# Creating functions for both demand groups for graphing each demand curve
 d_low <- function(q) {low_slp*q + low_int}
 d_high <- function(q) {high_slp*q + high_int}
 
 # Creating an overall demand function for calculations
-dem <- function(p, model){
-  q <- (p - model$coefficients[[1]])/model$coefficients[[2]]
+demand_funct <- function(p, model){ # using 'model', so either high or low demand can be used in this
+  q <- (p - model$coefficients[1])/model$coefficients[2]
   q <- ifelse(q<0,0,q)
   return(q)
 }
 
 # Creating an aggregate demand function
-dem_agg <- function(p){
-  q <- dem(p, low_lm) + dem(p, high_lm)
+demand_agg <- function(p){
+  q <- demand_funct(p, low_lm) + demand_funct(p, high_lm)
   return(q)
 }
 
 # Creating a sequence to map the aggregate demand function for plotting
 price = seq(0, 32, length.out = 100)
-qagg <- map(price, dem_agg) %>% 
+qagg <- map(price, demand_agg) %>% 
   unlist()
 
 # Putting the sequence into a dataframe
 df <- tibble(qagg = qagg, price = price)
 
 # Storing the intercept and slope of the aggregate
-d_agg_slp <- (0-low_int)/(dem_agg(0)-dem_agg(low_int))
-d_agg_int <- 0 - d_agg_slp*dem_agg(0)
+d_agg_slp <- (0-low_int)/(demand_agg(0)-demand_agg(low_int))
+d_agg_int <- 0 - d_agg_slp*demand_agg(0)
 d_agg_plot <- function(q) {d_agg_slp*q + d_agg_int}
 
+# Creating the MPC, MSC, MEC functions
+mpc_slp <- (10/demand_agg(10)) # MPC slope
+mpc <- function(q) {mpc_slp*q + 0} # MPC function
+mpc_q <- function(p) {p/mpc_slp} # MPC in terms of Q
+mec <- function(q) {1.96} # MEC funciton
+msc <- function(q) {mpc(q) + mec(q)} # MSC function
 
 
+# functions for calculating the consumer surplus:
 
+CS <- function(p, model){
+  q <- demand(p, model)
+  cs <- 0.5*(model$coefficients[[1]] - p)*q
+  return(cs)
+}
+
+
+# Aggregate consumer surplus function
+cs_agg <- function(p){
+  cs <- cs(p,low_lm) + cs(p,high_lm)
+  return(cs)
+}
+
+# Producer surplus function
+ps <- function(p){
+  q <- mpc_q(p)
+  prod_sur <- 0.5*q*p
+  return(prod_sur)
+}
+
+```
+
+```{r}
+ggplot() +
+  stat_function(color = "royalblue2", fun = d_low, size = 1, linetype = "twodash") +
+  stat_function(color = "royalblue4", fun = d_high, size = 1, linetype = "twodash") +
+  stat_function(color = "red3", fun = mpc, size = 0.75) +
+  stat_function(color = "orange3", fun = msc, size = 0.75) +
+  stat_function(color = "green4", fun = mec, size = 0.75) +
+  geom_point(aes(mpc_q(10),10), size = 0.75, color = "blue") +
+  geom_line(data = df, aes(x = qagg, y = price), color = "purple4", size = 1) +
+  scale_x_continuous(name="Electricity (kWh)", limits=c(0,900000),expand = c(0, 0)) +
+  scale_y_continuous(name="Price (cents)\n", limits=c(0,40),expand = c(0, 0)) +
+  geom_text(aes(label = "Low Demand", x = 140000, y = 10), angle = -54, size = 3) +
+  geom_text(aes(label = "High Demand", x = 370000, y = 14), angle = -33, size = 3) +
+  geom_text(aes(label = "Aggregate Demand", x = 450000, y = 14.5), angle = -24, size = 3) +
+  geom_text(aes(label = "MPC", x = 750000, y = 14.75), angle =11, size = 3) +
+  geom_text(aes(label = "MSC", x = 800000, y = 18), angle = 11, size = 3) +
+  geom_text(aes(label = "MEC", x = 850000, y = 3), size = 3) +
+  theme_classic() +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.95, 0.95), 
+        legend.justification = c(1, 1),
+        legend.spacing = unit(0, "cm"), 
+        legend.margin = margin(0, 0, 0, 0, "cm"))
 ```
 
 
