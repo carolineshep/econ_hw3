@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r include=TRUE, message = FALSE, warning = FALSE}
 
 library(tidyverse)
 library(janitor)
@@ -51,12 +51,16 @@ Qagg <- map(price, demand_agg) %>% unlist()
 df<- tibble(Qagg = Qagg, price = price)
 
 ggplot(df, aes(Qagg, price)) +
-  geom_line()
+  geom_line() +
+  geom_text(aes(x = 2e+05, y = 5),
+            label = "Aggregate Monthly Demand Curve") +
+  labs(x = "Quantity in kWh",
+       y = "Price")
 
 ```
 
 
-```{r}
+```{r, fig.align = 'center', include=TRUE, message = FALSE, warning = FALSE}
 # Low demand graph
 low_d_reg <- ggplot(data = carbon, aes(x = q_low_kwh, y = price_cents)) +
   theme_classic() +
@@ -76,7 +80,7 @@ high_d_reg <- ggplot(data = carbon, aes(x = q_high_kwh, y = price_cents)) +
 plot_grid(low_d_reg, high_d_reg, ncol = 2)
 ```
 
-```{r}
+```{r, fig.align = 'center', include=TRUE, message = FALSE, warning = FALSE}
 
 # Storing intercepts and slopes as objects for high and low demand
 low_int <- low_lm$coefficients[1] # Low Demand - intercept
@@ -155,10 +159,12 @@ low demand = `r low_lm$coefficients[1]` + `r low_lm$coefficients[2]` * q
 high demand = `r high_lm$coefficients[1]` + `r high_lm$coefficients[2]` * q
 
 # Agg demand equation:
-aggregate demand =
+q = ((p - `r high_lm$coefficients[1]` ) / `r high_lm$coefficients[2]` ) + ((p - `r low_lm$coefficients[1]` ) / `r low_lm$coefficients[2]` )
+
+#### this one needs to be fixed p = r agg_lm$coefficients[1]` + `r agg_lm$coefficients[2] * q
 
 
-```{r}
+```{r, fig.align = 'center', include=TRUE, message = FALSE, warning = FALSE}
 ggplot() +
   stat_function(color = "royalblue2", fun = d_low, size = 1, linetype = "twodash") +
   stat_function(color = "royalblue4", fun = d_high, size = 1, linetype = "twodash") +
