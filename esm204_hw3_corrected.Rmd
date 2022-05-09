@@ -87,5 +87,47 @@ high_d_reg <- ggplot(data = carbon, aes(x = q_high_kwh, y = price_cents)) +
 plot_grid(low_d_reg, high_d_reg, ncol = 2)
 ```
 
+```{r}
+
+#storing intercepts and slopes as objects for high and low demand
+low_int <- low_lm$coefficients[1]
+low_slp <- low_lm$coefficients[2]
+high_int <- high_lm$coefficients[1]
+high_slp <- high_lm$coefficients[2]
+
+# Creating functions for both demand groups for graphing
+d_low <- function(q) {low_slp*q + low_int}
+d_high <- function(q) {high_slp*q + high_int}
+
+# Creating an overall demand function for calculations
+dem <- function(p, model){
+  q <- (p - model$coefficients[[1]])/model$coefficients[[2]]
+  q <- ifelse(q<0,0,q)
+  return(q)
+}
+
+# Creating an aggregate demand function
+dem_agg <- function(p){
+  q <- dem(p, low_lm) + dem(p, high_lm)
+  return(q)
+}
+
+# Creating a sequence to map the aggregate demand function for plotting
+price = seq(0, 32, length.out = 100)
+qagg <- map(price, dem_agg) %>% 
+  unlist()
+
+# Putting the sequence into a dataframe
+df <- tibble(qagg = qagg, price = price)
+
+# Storing the intercept and slope of the aggregate
+d_agg_slp <- (0-low_int)/(dem_agg(0)-dem_agg(low_int))
+d_agg_int <- 0 - d_agg_slp*dem_agg(0)
+d_agg_plot <- function(q) {d_agg_slp*q + d_agg_int}
+
+
+
+
+```
 
 
