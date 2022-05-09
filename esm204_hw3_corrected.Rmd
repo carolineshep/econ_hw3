@@ -146,6 +146,18 @@ ps <- function(p){
 
 ```
 
+### Demand Equations
+
+# Low Income Demand:
+low demand = `r low_lm$coefficients[1]` + `r low_lm$coefficients[2]` * q
+
+# High Income Demand:
+high demand = `r high_lm$coefficients[1]` + `r high_lm$coefficients[2]` * q
+
+# Agg demand equation:
+aggregate demand =
+
+
 ```{r}
 ggplot() +
   stat_function(color = "royalblue2", fun = d_low, size = 1, linetype = "twodash") +
